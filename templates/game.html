@@ -1,8 +1,106 @@
 <style>
     body {
-        text-align: center;
         font-family: Arial, sans-serif;
         margin: 20px;
+        background: #f4f7fb;
+        color: #1d2433;
+    }
+    .game-shell {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    .top-bar {
+        background: linear-gradient(135deg, #1f2d3d, #3a4d6e);
+        color: white;
+        border-radius: 16px;
+        padding: 18px 22px;
+        box-shadow: 0 10px 30px rgba(31,45,61,0.2);
+    }
+    .top-bar table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 1.05rem;
+    }
+    .top-bar td {
+        padding: 6px 8px;
+        vertical-align: middle;
+    }
+    .status-label {
+        font-weight: bold;
+        opacity: 0.8;
+    }
+    .players-board {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin: 22px 0;
+        justify-content: center;
+    }
+    .player-token {
+        width: 110px;
+        min-height: 130px;
+        border-radius: 22px;
+        background: #eef3ff;
+        border: 2px solid #d7dff8;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .player-token.current {
+        border-color: #ffb703;
+        background: linear-gradient(135deg, #fff4d1, #ffe9ba);
+        transform: scale(1.06);
+        box-shadow: 0 12px 28px rgba(255,183,3,0.33);
+    }
+    .player-token.me {
+        border-color: #26a69a;
+    }
+    .player-number {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: #1f2d3d;
+        color: white;
+        font-size: 0.95rem;
+        font-weight: bold;
+        margin-bottom: 8px;
+    }
+    .player-name {
+        font-weight: bold;
+        text-align: center;
+        word-break: break-word;
+        max-width: 90px;
+    }
+    .player-score {
+        margin-top: 8px;
+        font-size: 0.82rem;
+        color: #334155;
+    }
+    .word-panel {
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+        margin: 18px 0;
+    }
+    .word-display {
+        font-size: 2rem;
+        letter-spacing: 0.4rem;
+        text-align: center;
+        font-weight: bold;
+        margin: 16px 0;
+    }
+    .money-banner {
+        font-size: 1.05rem;
+        font-weight: bold;
+        color: #0f766e;
+        margin-bottom: 10px;
     }
     button {
         margin: 4px;
@@ -11,79 +109,183 @@
         background: #4CAF50;
         color: white;
         border: none;
-        border-radius: 4px;
+        border-radius: 8px;
         cursor: pointer;
     }
     button:hover {
         background: #45a049;
     }
-    input[type="text"] {
-        padding: 8px;
+    .secondary-btn {
+        background: #2196F3;
+    }
+    .secondary-btn:hover {
+        background: #1976d2;
+    }
+    input[type="text"], input[type="number"] {
+        padding: 10px 12px;
         font-size: 16px;
-        border-radius: 4px;
-        border: 1px solid #ccc;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        min-width: 220px;
     }
     input[type="submit"] {
-        padding: 8px 16px;
+        padding: 10px 18px;
         font-size: 16px;
         background: #2196F3;
         color: white;
         border: none;
-        border-radius: 4px;
+        border-radius: 8px;
         cursor: pointer;
     }
-    p {
-        margin: 10px 0;
+    .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+        justify-content: center;
+        align-items: center;
+        margin-top: 20px;
     }
-    form {
-        margin: 15px auto;
-        max-width: fit-content;
+    .panel-card {
+        background: white;
+        border-radius: 16px;
+        padding: 18px 20px;
+        box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+        margin-top: 18px;
+    }
+    .table-status {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+    }
+    .table-status th, .table-status td {
+        border: 1px solid #dfeaf7;
+        padding: 10px 12px;
+        text-align: left;
+    }
+    .table-status th {
+        background: #eaf3ff;
+    }
+    .system-message {
+        margin-top: 20px;
+        padding: 12px 16px;
+        border-radius: 12px;
+        background: #eefbf4;
+        border: 1px solid #bfe8cb;
+        color: #14532d;
+        font-weight: 600;
+    }
+    .reveal-banner {
+        background: linear-gradient(135deg, #fef3c7, #fef9c3);
+        border: 1px solid #facc15;
+        color: #78350f;
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-weight: bold;
+        margin-top: 16px;
     }
 </style>
 
-<h1>Partie {{ game_code }} | User: {{ username }} | Nb de mots restants : {{ nb_words }}</h1>
+<div class="game-shell">
+    <div class="top-bar">
+        <table>
+            <tr>
+                <td class="status-label">Partie</td>
+                <td>{{ game_code }}</td>
+                <td class="status-label">Joueur</td>
+                <td>{{ username }}</td>
+                <td class="status-label">Mots restants</td>
+                <td>{{ nb_words }}</td>
+            </tr>
+        </table>
+    </div>
 
-<p>Mot : {{ word }}</p>
-
-<p>On joue pour {{ money }}</p>
-
-<p {% if ifplay != 1 %} style="display:none;" {% endif %}>Lettres disponibles :</p>
-
-<form action="/guess" method="post" {% if ifplay != 1 %} style="display:none;" {% endif %}>
-    <input type="hidden" name="game_code" value="{{ game_code }}">
-    <p>Voyelles | Prise : 2500</p>
-    {% for y in voyelles %}
-        <button type="submit" name="letter" value="{{ y }}">{{ y }}</button>
-    {% endfor %}
-    <br>
-    <p>Consonnes</p>
-    {% for c in consonnes %}
-        <button type="submit" name="letter" value="{{ c }}">{{ c }}</button>
-    {% endfor %}
-</form>
-
-<form action="/guess" method="post" {% if ifplay != 1 %} style="display:none;" {% endif %}>
-    <input type="hidden" name="game_code" value="{{ game_code }}">
-    <input type="text" name="text" placeholder="Entrez votre proposition" onfocus="this.select()">
-    <input type="submit" value="Proposer">
-</form>
-
-{% with messages = get_flashed_messages() %}
-    {% if messages %}
-        {% for message in messages %}
-            <p>{{ message }}</p>
+    <div class="players-board">
+        {% for item in players_data %}
+            <div class="player-token {% if item.is_current %}current{% endif %} {% if item.is_me %}me{% endif %}">
+                <span class="player-number">{{ item.position }}</span>
+                <div class="player-name">{{ item.name }}</div>
+                <div class="player-score">{{ item.score }} pts</div>
+            </div>
         {% endfor %}
+    </div>
+
+    <div class="word-panel">
+        <div class="money-banner">On joue pour {{ money }} points</div>
+        <div class="word-display">{{ word }}</div>
+    </div>
+
+    {% if last_event %}
+        <div class="reveal-banner">Mot trouvé par {{ last_event.player }} : “{{ last_event.word }}”</div>
     {% endif %}
-{% endwith %}
 
-<p>Joueur actuel : {{ playerplay }} || Liste des joueurs : {{ listplayers }}</p>
+    {% if ifplay %}
+        <div class="panel-card">
+            <p>Voyelles | Prise : 2500</p>
+            <form action="/guess" method="post">
+                <input type="hidden" name="game_code" value="{{ game_code }}">
+                {% for y in voyelles %}
+                    <button type="submit" name="letter" value="{{ y }}">{{ y }}</button>
+                {% endfor %}
+            </form>
 
-<!-- Script optimisé pour détecter les changements d'état via hash -->
+            <p>Consonnes</p>
+            <form action="/guess" method="post">
+                <input type="hidden" name="game_code" value="{{ game_code }}">
+                {% for c in consonnes %}
+                    <button type="submit" name="letter" value="{{ c }}">{{ c }}</button>
+                {% endfor %}
+            </form>
+
+            <div class="controls">
+                <form action="/guess" method="post">
+                    <input type="hidden" name="game_code" value="{{ game_code }}">
+                    <input type="text" name="text" placeholder="Entrez votre proposition" onfocus="this.select()">
+                    <input type="submit" value="Proposer" class="secondary-btn">
+                </form>
+                <form action="/guess" method="post">
+                    <input type="hidden" name="game_code" value="{{ game_code }}">
+                    <input type="hidden" name="action" value="skip">
+                    <button type="submit" class="secondary-btn">Skip</button>
+                </form>
+            </div>
+        </div>
+    {% endif %}
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="system-message">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="panel-card">
+        <table class="table-status">
+            <thead>
+                <tr>
+                    <th>Joueur actuel</th>
+                    <th>Liste des joueurs</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ playerplay }}</td>
+                    <td>
+                        {% for player in listplayers %}
+                            {{ loop.index }} : {{ player }}{% if not loop.last %} | {% endif %}
+                        {% endfor %}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
 <script>
     const gameCode = "{{ game_code }}";
     let currentHash = null;
+    const revealTimer = {% if last_event %}4000{% else %}0{% endif %};
 
-    // Fonction pour récupérer le hash actuel de la partie
     async function fetchGameHash() {
         try {
             const response = await fetch(`/api/update/hash`, {
@@ -99,26 +301,20 @@
         }
     }
 
-    // Fonction pour vérifier les changements
     async function checkForChanges() {
         const newHash = await fetchGameHash();
         if (newHash && newHash !== currentHash) {
             currentHash = newHash;
-            window.location.reload(); // Recharge si le hash a changé
+            window.location.reload();
         }
     }
 
-    // Initialisation
     (async () => {
         currentHash = await fetchGameHash();
-        // Vérifie toutes les 1.5 secondes si ce n'est pas le tour du joueur (comme avant)
-        // ou toutes les 5 secondes si c'est son tour (moins fréquent)
-        const interval = {% if ifplay != 1 %}1500{% else %}5000{% endif %};
+        const interval = {% if ifplay %}5000{% else %}1500{% endif %};
         setInterval(checkForChanges, interval);
+        if (revealTimer) {
+            setTimeout(() => window.location.reload(), revealTimer);
+        }
     })();
-
-    // Détection du changement de hash dans l'URL (si utilisé)
-    window.addEventListener("hashchange", () => {
-        window.location.reload();
-    });
 </script>

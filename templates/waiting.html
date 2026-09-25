@@ -1,39 +1,144 @@
-<h1>{{ username }} Bienvenue dans la Salle d'attente</h1>
-<p>Code de la partie : {{ game_code }}</p>
-<p>Nombre de mots : {{ nb_words }}</p>
-<p>Joueurs dans la partie :</p>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background: #f4f7fb;
+        color: #1d2433;
+    }
+    .waiting-shell {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    .header-card {
+        background: linear-gradient(135deg, #1f2d3d, #3a4d6e);
+        color: white;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(31,45,61,0.2);
+    }
+    .players-board {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+        justify-content: center;
+        margin: 24px 0;
+    }
+    .player-token {
+        width: 120px;
+        min-height: 130px;
+        border-radius: 22px;
+        background: #eef3ff;
+        border: 2px solid #d7dff8;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    }
+    .player-token.admin {
+        border-color: #ffb703;
+        background: linear-gradient(135deg, #fff4d1, #ffe9ba);
+    }
+    .player-number {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: #1f2d3d;
+        color: white;
+        font-weight: bold;
+        margin-bottom: 8px;
+    }
+    .player-name {
+        font-weight: bold;
+        text-align: center;
+    }
+    .player-meta {
+        margin-top: 8px;
+        font-size: 0.8rem;
+        color: #475569;
+    }
+    .panel-card {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+        margin-top: 18px;
+    }
+    button {
+        margin: 4px;
+        padding: 10px 18px;
+        font-size: 16px;
+        background: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+    input[type="number"] {
+        padding: 10px 12px;
+        font-size: 16px;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+    }
+    .system-message {
+        margin-top: 20px;
+        padding: 12px 16px;
+        border-radius: 12px;
+        background: #eefbf4;
+        border: 1px solid #bfe8cb;
+        color: #14532d;
+        font-weight: 600;
+    }
+</style>
 
-{% for player in players %}
-    <p>{{ player }}</p>
-{% endfor %}
+<div class="waiting-shell">
+    <div class="header-card">
+        <h1>{{ username }} — Salle d'attente</h1>
+        <p>Code de la partie : {{ game_code }}</p>
+        <p>Nombre de mots : {{ nb_words }}</p>
+    </div>
 
-{% if admin %}
-    <p>Vous êtes l'administrateur de la partie. Vous pouvez démarrer la partie lorsque tous les joueurs sont prêts.</p>
-    <form action="/waiting" method="post">
-        <button type="submit" name="switch_status" value="start">Démarrer la partie</button>
-    </form>
-    <form action="/waiting" method="post">
-        Nb de mots : <input type="number" name="nb_words" min="1" value="{{ nb_words }}">
-        <button type="submit">Modifier le nombre de mots</button>
-    </form>
-{% else %}
-    <p>En attente que l'administrateur démarre la partie...</p>
-{% endif %}
-
-{% with messages = get_flashed_messages() %}
-    {% if messages %}
-        {% for message in messages %}
-            <p>{{ message }}</p>
+    <div class="players-board">
+        {% for item in players_data %}
+            <div class="player-token {% if item.is_admin %}admin{% endif %}">
+                <span class="player-number">{{ item.position }}</span>
+                <div class="player-name">{{ item.name }}</div>
+                <div class="player-meta">{% if item.is_admin %}Maître{% else %}Joueur{% endif %}</div>
+            </div>
         {% endfor %}
-    {% endif %}
-{% endwith %}
+    </div>
 
-<!-- Script optimisé pour détecter les changements d'état via hash -->
+    <div class="panel-card">
+        {% if admin %}
+            <p>Vous êtes l'administrateur de la partie. Vous pouvez démarrer la partie lorsque tous les joueurs sont prêts.</p>
+            <form action="/waiting" method="post">
+                <button type="submit" name="switch_status" value="start">Démarrer la partie</button>
+            </form>
+            <form action="/waiting" method="post">
+                Nb de mots : <input type="number" name="nb_words" min="1" value="{{ nb_words }}">
+                <button type="submit">Modifier le nombre de mots</button>
+            </form>
+        {% else %}
+            <p>En attente que l'administrateur démarre la partie...</p>
+        {% endif %}
+    </div>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="system-message">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+</div>
+
 <script>
     const gameCode = "{{ game_code }}";
     let currentHash = null;
 
-    // Fonction pour récupérer le hash actuel de la partie
     async function fetchGameHash() {
         try {
             const response = await fetch(`/api/update/hash`, {
@@ -49,24 +154,16 @@
         }
     }
 
-    // Fonction pour vérifier les changements
     async function checkForChanges() {
         const newHash = await fetchGameHash();
         if (newHash && newHash !== currentHash) {
             currentHash = newHash;
-            window.location.reload(); // Recharge si le hash a changé
+            window.location.reload();
         }
     }
 
-    // Initialisation
     (async () => {
         currentHash = await fetchGameHash();
-        // Vérifie toutes les 2 secondes (au lieu de recharger à chaque fois)
         setInterval(checkForChanges, 2000);
     })();
-
-    // Détection du changement de hash dans l'URL (si utilisé)
-    window.addEventListener("hashchange", () => {
-        window.location.reload();
-    });
 </script>

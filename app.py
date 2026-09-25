@@ -5,6 +5,7 @@ import os
 import pandas
 import hashlib
 import json
+import time
 
 
 #env
@@ -23,17 +24,20 @@ r = redis.Redis(
 
 # Fonction pour générer un hash unique de l'état de la partie
 def generate_game_hash(game_code):
+    word = r.get(f"game:{game_code}:word")
     data = {
         "status": r.get(f"game:{game_code}:status"),
-        "word": r.get(f"game:{game_code}:word"),
+        "word": word,
         "playerplay": r.get(f"game:{game_code}:playerplay"),
         "players": r.lrange(f"game:{game_code}:players", 0, -1),
         "money": r.get(f"game:{game_code}:money"),
-        "nb_words": r.get(f"game:{game_code}:nb_words")
+        "nb_words": r.get(f"game:{game_code}:nb_words"),
+        "letters": r.lrange(f"game:{game_code}:{word}", 0, -1) if word else [],
+        "last_event": r.get(f"game:{game_code}:last_event"),
+        "skip_votes": r.lrange(f"game:{game_code}:skip_votes", 0, -1)
     }
-    # Convertir en JSON et hasher en SHA256 (hash court pour éviter les collisions)
-    data_str = json.dumps(data, sort_keys=True)  # sort_keys pour un ordre stable
-    return hashlib.sha256(data_str.encode()).hexdigest()[:8]  # 8 premiers caractères
+    data_str = json.dumps(data, sort_keys=True)
+    return hashlib.sha256(data_str.encode()).hexdigest()[:8]
 
 app = Flask(__name__)
 
@@ -219,9 +223,17 @@ def waiting():
         return redirect(url_for("index"))
 
     if r.get(f"game:{game_code}:status") == "waiting" and username in r.lrange(f"game:{game_code}:players", 0, -1):
+        players = r.lrange(f"game:{game_code}:players", 0, -1)
+        players_data = [{
+            "name": player,
+            "score": int(r.get(f"game:{game_code}:score:{player}") or 0),
+            "position": idx + 1,
+            "is_admin": (r.get(f"game:{game_code}") == player)
+        } for idx, player in enumerate(players)]
         return render_template("waiting.html",
                                game_code=game_code,
-                               players=r.lrange(f"game:{game_code}:players", 0, -1),
+                               players=players,
+                               players_data=players_data,
                                username=username,
                                admin=(r.get(f"game:{game_code}") == username),
                                nb_words=int(r.get(f"game:{game_code}:nb_words") or 1)
@@ -244,20 +256,17 @@ def game():
         return redirect(url_for("index"))
 
     if r.get(f"game:{game_code}:status") == "playing" and username in r.lrange(f"game:{game_code}:players", 0, -1):
-        word = r.get(f"game:{game_code}:word")  # Récupère le mot (string)
-        available_letters = r.lrange(f"game:{game_code}:{word}", 0, -1)  # Lettres disponibles
+        word = r.get(f"game:{game_code}:word")
+        available_letters = r.lrange(f"game:{game_code}:{word}", 0, -1)
 
-        # Filtre les voyelles/consonnes disponibles
         available_voyelles = [v for v in voyelles if v in available_letters]
         available_consonnes = [c for c in consonnes if c in available_letters]
 
-        # Affiche le mot avec les lettres non disponibles masquées
         display_word = "".join([
             char if char not in available_letters else (char if char not in all_letters else "X")
             for char in word
         ])
 
-        ## Récupère "id" du joueur qui joue actuellement et le contrôle pour savoir si c'est le tour du joueur actuel
         playerplay = r.get(f"game:{game_code}:playerplay")
         listplayers = r.lrange(f"game:{game_code}:players", 0, -1)
         ifplay = False
@@ -272,11 +281,18 @@ def game():
         else:
             ifplay = True
 
-        listplayers_dysplay = "".join([
-            str(r.get(f"game:{game_code}:score:{player}") or 0) +
-            f" : {player} | "
-            for player in listplayers
-        ])
+        player_index = int(playerplay) if playerplay is not None else 0
+        current_player_name = listplayers[player_index] if listplayers else username
+        players_data = [{
+            "name": player,
+            "score": int(r.get(f"game:{game_code}:score:{player}") or 0),
+            "position": idx + 1,
+            "is_current": idx == player_index,
+            "is_me": player == username
+        } for idx, player in enumerate(listplayers)]
+
+        last_event_raw = r.get(f"game:{game_code}:last_event")
+        last_event = json.loads(last_event_raw) if last_event_raw else None
 
         return render_template("game.html",
                               game_code=game_code,
@@ -285,10 +301,12 @@ def game():
                               voyelles=available_voyelles,
                               consonnes=available_consonnes,
                               ifplay=ifplay if 'ifplay' in locals() else False,
-                              playerplay=listplayers[int(playerplay)],
-                              listplayers=listplayers_dysplay,
+                              playerplay=current_player_name,
+                              listplayers=listplayers,
+                              players_data=players_data,
                               money=int(r.get(f'game:{game_code}:money') or 0),
-                              nb_words=int(r.get(f"game:{game_code}:nb_words") or 1)
+                              nb_words=int(r.get(f"game:{game_code}:nb_words") or 1),
+                              last_event=last_event
                               )
 
     if r.get(f"game:{game_code}:status") == "finished":
@@ -353,6 +371,27 @@ def guess():
         else:
             flash(f"La lettre '{letter}' n'est pas disponible pour cette partie.")
             return redirect(url_for("game"))
+    elif request.form.get("action") == "skip":
+        if listplayers[int(playerplay)] != username:
+            flash(f"Ce n'est pas votre tour de jouer, c'est le tour de {listplayers[int(playerplay)]}.")
+            return redirect(url_for("game"))
+
+        skip_votes = set(r.lrange(f"game:{game_code}:skip_votes", 0, -1))
+        skip_votes.add(username)
+        r.delete(f"game:{game_code}:skip_votes")
+        for player in sorted(skip_votes):
+            r.rpush(f"game:{game_code}:skip_votes", player)
+
+        if len(skip_votes) >= len(listplayers):
+            r.delete(f"game:{game_code}:skip_votes")
+            r.set(f"game:{game_code}:playerplay", (int(playerplay) + 1) % len(listplayers), ex=3600)
+            flash("Tous les joueurs ont choisi de passer. Aucun point n'a été attribué.")
+            return redirect(url_for("game"))
+
+        r.set(f"game:{game_code}:playerplay", (int(playerplay) + 1) % len(listplayers), ex=3600)
+        flash(f"{username} a demandé un skip. Il faut que tous les joueurs passent pour valider le tour.")
+        return redirect(url_for("game"))
+
     elif request.form.get("text"):
         text = request.form.get("text")
         if not text:
@@ -360,31 +399,39 @@ def guess():
             return redirect(url_for("game"))
 
         word = r.get(f"game:{game_code}:word")
-        if not word:  # ← NOUVEAU : Vérifie que word existe
+        if not word:
             flash("Mot de la partie introuvable (partie corrompue ou expirée).")
             return redirect(url_for("game"))
         nb_words = r.get(f"game:{game_code}:nb_words") or 1
 
         if text.lower() == word.lower():
+            r.delete(f"game:{game_code}:skip_votes")
+            final_message = f"Félicitations {username}, vous avez deviné le mot '{word}'."
+            r.set(f"game:{game_code}:last_event", json.dumps({
+                "player": username,
+                "word": word,
+                "message": final_message,
+                "time": int(time.time())
+            }), ex=6)
             r.set(f"game:{game_code}:nb_words", int(nb_words) - 1, ex=3600)
             if int(nb_words) - 1 <= 0:
                 r.set(f"game:{game_code}:status", "finished", ex=3600)
-                flash(f"Félicitations {username}, vous avez deviné le mot '{word}' ! La partie est terminée.")
+                flash(f"{final_message} La partie est terminée.")
                 return redirect(url_for("game"))
             else:
-                score = word.count(text)  # Récupère le nombre de lettres du mot pour le score
-                flash(f"Félicitations {username}, vous avez deviné le mot '{word}' ! Il reste {int(nb_words) - 1} mots à deviner.")
+                score = len(word)
+                flash(f"{final_message} Il reste {int(nb_words) - 1} mots à deviner.")
                 r.set(f"game:{game_code}:score:{username}", int(r.get(f"game:{game_code}:score:{username}") or 0) + score * int(r.get(f"game:{game_code}:money") or 100), ex=3600)
-                # Choisir un nouveau mot aléatoire
                 new_word = get_available_words(exclude=word)
                 r.set(f"game:{game_code}:word", new_word, ex=3600)
-                r.delete(f"game:{game_code}:{word}")  # Supprime l'ancienne liste de lettres
-                r.rpush(f"game:{game_code}:{new_word}", *all_letters)  # Crée une nouvelle liste de lettres pour le nouveau mot
+                r.delete(f"game:{game_code}:{word}")
+                r.rpush(f"game:{game_code}:{new_word}", *all_letters)
                 r.expire(f"game:{game_code}:{new_word}", 3600)
+                r.set(f"game:{game_code}:playerplay", (int(playerplay) + 1) % len(listplayers), ex=3600)
                 return redirect(url_for("game"))
         else:
             flash(f"Désolé {username}, ce n'est pas le bon mot.")
-            r.set(f"game:{game_code}:playerplay", (int(playerplay) + 1) % len(listplayers), ex=3600)  # Passe au joueur suivant
+            r.set(f"game:{game_code}:playerplay", (int(playerplay) + 1) % len(listplayers), ex=3600)
             return redirect(url_for("game"))
 
     flash("Aucune action valide n'a été fournie.")
