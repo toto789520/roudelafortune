@@ -6,6 +6,10 @@ services:
       - "${REDIS_PORT:-6379}"
     volumes:
       - redis_data:/data
+    networks:
+      default:
+        aliases:
+          - redis
     healthcheck:
       test: ["CMD", "redis-cli", "-p", "${REDIS_PORT:-6379}", "ping"]
       interval: 5s
@@ -29,7 +33,14 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    networks:
+      default:
+        aliases:
+          - app
     restart: unless-stopped
 
 volumes:
   redis_data:
+
+networks:
+  default:
