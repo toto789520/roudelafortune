@@ -26,7 +26,7 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       - PORT=${PORT:-8000}
-      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_HOST=${SERVICE_NAME_REDIS}
       - REDIS_PORT=${REDIS_PORT:-6379}
     depends_on:
       redis:
