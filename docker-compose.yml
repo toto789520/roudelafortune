@@ -6,6 +6,8 @@ services:
       - "${REDIS_PORT:-6379}"
     volumes:
       - redis_data:/data
+    networks:
+      - roudelafortune_net
     healthcheck:
       test: ["CMD", "redis-cli", "-p", "${REDIS_PORT:-6379}", "ping"]
       interval: 5s
@@ -29,7 +31,13 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    networks:
+      - roudelafortune_net
     restart: unless-stopped
 
 volumes:
   redis_data:
+
+networks:
+  roudelafortune_net:
+    driver: bridge
