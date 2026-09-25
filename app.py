@@ -16,7 +16,7 @@ port=int(os.getenv("PORT") or 8000)
 
 # Connexion à Redis
 r = redis.Redis(
-    host=os.getenv("REDIS_HOST", "localhost"),
+    host=os.getenv("SERVICE_NAME_REDIS") or os.getenv("REDIS_HOST", "localhost"),
     port=int(os.getenv("REDIS_PORT", 6379)),
     decode_responses=True
 )
