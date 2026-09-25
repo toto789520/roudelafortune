@@ -16,7 +16,7 @@ port=int(os.getenv("PORT") or 8000)
 
 # Connexion à Redis
 r = redis.Redis(
-    host=os.getenv("REDIS_HOST", "localhost"),
+    host=os.getenv("SERVICE_NAME_REDIS") or os.getenv("REDIS_HOST", "localhost"),
     port=int(os.getenv("REDIS_PORT", 6379)),
     decode_responses=True
 )
@@ -428,4 +428,5 @@ def api_update(type):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True, threaded=True, port=port)
+    debug_mode = os.getenv("FLASK_DEBUG", "0") == "1"
+    app.run(host="0.0.0.0", debug=debug_mode, threaded=True, port=port)
