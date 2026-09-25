@@ -428,4 +428,5 @@ def api_update(type):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True, threaded=True, port=port)
+    debug_mode = os.getenv("FLASK_DEBUG", "0") == "1"
+    app.run(host="0.0.0.0", debug=debug_mode, threaded=True, port=port)
