@@ -20,23 +20,12 @@ services:
       context: .
       args:
         PORT: ${PORT:-8000}
-    command: >
-      sh -c "
-      export PORT=${PORT:-8000};
-      if [ \"${APP_MODE:-dev}\" = \"prod\" ]; then
-        exec uwsgi --ini uwsgi.ini;
-      else
-        exec flask --app app run --host 0.0.0.0 --port ${PORT:-8000} --debug --with-threads;
-      fi
-      "
-    ports:
-      - "${PORT:-8000}:${PORT:-8000}"
-    volumes:
-      - .:/app
+    expose:
+      - "${PORT:-8000}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - PORT=${PORT:-8000}
-      - APP_MODE=${APP_MODE:-dev}
-      - SECRET_KEY=${SECRET_KEY:-}
       - REDIS_HOST=${REDIS_HOST:-redis}
       - REDIS_PORT=${REDIS_PORT:-6379}
     depends_on:
