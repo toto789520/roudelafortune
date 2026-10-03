@@ -23,7 +23,6 @@ COPY . .
 # Port par défaut, modifiable au build (docker build --build-arg PORT=...) ou à l'exécution (-e PORT=...)
 ARG PORT=8000
 ENV PORT=${PORT}
-ENV APP_MODE=prod
 
 # Port exposé
 EXPOSE ${PORT}
