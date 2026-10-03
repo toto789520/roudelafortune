@@ -3,53 +3,69 @@
   <head>
     <meta charset="UTF-8">
     <title>Roue de la Fortune</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/content.css') }}">
   </head>
-  <body>
-    <h1>Roue de la Fortune</h1>
+  <body data-page="index">
+    <div class="page-shell">
+      <h1>Roue de la Fortune</h1>
 
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <ul>
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
           {% for message in messages %}
-            <li>{{ message }}</li>
+            <div class="system-message">{{ message }}</div>
           {% endfor %}
-        </ul>
-      {% endif %}
-    {% endwith %}
+        {% endif %}
+      {% endwith %}
 
-    <section>
-      <h2>Mon pseudo</h2>
-      <form action="/setusername" method="post">
-        <label for="username">Pseudo</label>
-        <input id="username" type="text" name="username" placeholder="Entrez votre pseudo" required minlength="3" maxlength="20">
-        <button type="submit">Valider le pseudo</button>
-      </form>
-    </section>
-
-    <section>
-      <h2>Rejoindre une partie</h2>
-      <form action="/joingame" method="post">
-        <label for="game_code">Code de la partie</label>
-        <input id="game_code" type="text" name="game_code" placeholder="Entrez le code" required>
-        <button type="submit">Rejoindre</button>
-      </form>
-    </section>
-
-    <section>
-      <h2>Créer une partie</h2>
-      <form action="/newgame" method="post">
-        <button type="submit">Créer une nouvelle partie</button>
-      </form>
-    </section>
-
-    {% if game_code %}
-      <section>
-        <h2>Reprendre une partie</h2>
-        <form action="/joingame" method="post">
-          <input type="hidden" name="game_code" value="{{ game_code }}">
-          <button type="submit">Reprendre la partie : {{ game_code }}</button>
+      <section class="auth-section">
+        <h2 id="username-title">Mon pseudo{% if code %} : {{ code }}{% endif %}</h2>
+        <form class="form-stack" action="/setusername" method="post">
+          <label for="username">Pseudo</label>
+          <div class="field-group pseudo-field">
+            <input id="username" type="text" name="username" placeholder="Entrez votre pseudo" required minlength="3" maxlength="20" autocomplete="pseudo" value="{{ code or '' }}">
+            <button type="submit">Valider le pseudo</button>
+          </div>
         </form>
       </section>
-    {% endif %}
+
+      <div>
+        <div class="tabs" role="tablist" aria-label="Choix de la partie">
+          <button id="join-tab-button" class="tab-button active" type="button" role="tab" aria-selected="true" aria-controls="join-tab" tabindex="0" data-tab="join-tab">Rejoindre</button>
+          <button id="create-tab-button" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="create-tab" tabindex="-1" data-tab="create-tab">Créer</button>
+        </div>
+        <section class="auth-section tabs-section">
+          <div class="tab-panel active" id="join-tab" role="tabpanel" aria-labelledby="join-tab-button" tabindex="0">
+            <form action="/joingame" method="post" class="form-stack">
+              <label for="game_code">Code de la partie</label>
+              <div class="field-group game-code-field">
+                <input id="game_code" type="text" name="game_code" placeholder="Entrez le code" required>
+                <button type="submit">Rejoindre</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="tab-panel" id="create-tab" role="tabpanel" aria-labelledby="create-tab-button" tabindex="0" hidden>
+            <form action="/newgame" method="post">
+              <button type="submit">Créer une nouvelle partie</button>
+            </form>
+          </div>
+        </section>
+      </div>
+
+      {% if game_code %}
+        <section class="auth-section">
+          <h2>Reprendre une partie</h2>
+          <form action="/joingame" method="post">
+            <input type="hidden" name="game_code" value="{{ game_code }}">
+            <button type="submit">Reprendre la partie : {{ game_code }}</button>
+          </form>
+        </section>
+      {% endif %}
+    </div>
+
+    <script src="{{ url_for('static', filename='js/site.js') }}" defer></script>
   </body>
 </html>

@@ -1,124 +1,118 @@
-<style>
-    body {
-        text-align: center;
-        font-family: Arial, sans-serif;
-        margin: 20px;
-    }
-    button {
-        margin: 4px;
-        padding: 8px 12px;
-        font-size: 18px;
-        background: #4CAF50;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-    }
-    button:hover {
-        background: #45a049;
-    }
-    input[type="text"] {
-        padding: 8px;
-        font-size: 16px;
-        border-radius: 4px;
-        border: 1px solid #ccc;
-    }
-    input[type="submit"] {
-        padding: 8px 16px;
-        font-size: 16px;
-        background: #2196F3;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-    }
-    p {
-        margin: 10px 0;
-    }
-    form {
-        margin: 15px auto;
-        max-width: fit-content;
-    }
-</style>
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8">
+    <title>Roue de la Fortune</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/content.css') }}">
+  </head>
+  <body data-page="game" data-game-code="{{ game_code }}">
+    <div id="page-state" data-last-event="{{ 'true' if last_event else 'false' }}" data-player-turn="{{ 'true' if ifplay else 'false' }}" data-username="{{ username }}" data-admin="{{ 'true' if admin else 'false' }}" data-current-player="{{ playerplay }}"></div>
+    <div class="game-shell cursor-container">
+        <div class="top-bar">
+            <div class="status-group">
+                <span class="status-label">Partie</span>
+                <span class="status-value">{{ game_code }}</span>
+            </div>
+            <div class="status-group">
+                <span class="status-label">Joueur</span>
+                <span class="status-value">{{ username }}</span>
+            </div>
+            <div class="status-group">
+                <span class="status-label">Mots restants</span>
+                <span class="status-value">{{ nb_words }}</span>
+            </div>
+        </div>
 
-<h1>Partie {{ game_code }} | User: {{ username }} | Nb de mots restants : {{ nb_words }}</h1>
+        <div class="players-board">
+            {% for item in players_data %}
+                <div class="player-token {% if item.is_current %}current{% endif %} {% if item.is_me %}me{% endif %}">
+                    <span class="player-number">{{ item.position }}</span>
+                    <div class="player-info">
+                        <div class="player-name">{{ item.name }}</div>
+                        <div class="player-score">{{ item.score }} pts</div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
 
-<p>Mot : {{ word }}</p>
+        <div class="word-panel">
+            <div class="money-banner">On joue pour {{ money }} points</div>
+            <div class="word-display">{{ word }}</div>
+        </div>
 
-<p>On joue pour {{ money }}</p>
+        {% if last_event %}
+            <div class="reveal-banner">Mot trouvé par {{ last_event.player }} : “{{ last_event.word }}”</div>
+        {% endif %}
 
-<p {% if ifplay != 1 %} style="display:none;" {% endif %}>Lettres disponibles :</p>
+        <div class="panel-card">
+            <div class="letters-section">
+                <h3 class="letters-title">Voyelles</h3>
+                <span class="letters-hint">Coûte 2500 points</span>
+            </div>
+            <form action="/guess" method="post">
+                <input type="hidden" name="game_code" value="{{ game_code }}">
+                {% for y in voyelles %}
+                    <button type="submit" name="letter" value="{{ y }}" class="letter{% if y not in available_letters %} used{% elif not ifplay %} locked{% endif %}"{% if y not in available_letters or not ifplay %} disabled{% endif %}>{{ y }}</button>
+                {% endfor %}
+            </form>
 
-<form action="/guess" method="post" {% if ifplay != 1 %} style="display:none;" {% endif %}>
-    <input type="hidden" name="game_code" value="{{ game_code }}">
-    <p>Voyelles | Prise : 2500</p>
-    {% for y in voyelles %}
-        <button type="submit" name="letter" value="{{ y }}">{{ y }}</button>
-    {% endfor %}
-    <br>
-    <p>Consonnes</p>
-    {% for c in consonnes %}
-        <button type="submit" name="letter" value="{{ c }}">{{ c }}</button>
-    {% endfor %}
-</form>
+            <div class="letters-section">
+                <h3 class="letters-title">Consonnes</h3>
+                <span class="letters-hint">Gratuites</span>
+            </div>
+            <form action="/guess" method="post">
+                <input type="hidden" name="game_code" value="{{ game_code }}">
+                {% for c in consonnes %}
+                    <button type="submit" name="letter" value="{{ c }}" class="letter{% if c not in available_letters %} used{% elif not ifplay %} locked{% endif %}"{% if c not in available_letters or not ifplay %} disabled{% endif %}>{{ c }}</button>
+                {% endfor %}
+            </form>
 
-<form action="/guess" method="post" {% if ifplay != 1 %} style="display:none;" {% endif %}>
-    <input type="hidden" name="game_code" value="{{ game_code }}">
-    <input type="text" name="text" placeholder="Entrez votre proposition" onfocus="this.select()">
-    <input type="submit" value="Proposer">
-</form>
+            {% if ifplay %}
+            <div class="controls">
+                <form action="/guess" method="post" class="form-stack">
+                    <input type="hidden" name="game_code" value="{{ game_code }}">
+                    <div class="field-group guess-field">
+                        <input type="text" name="text" placeholder="Entrez votre proposition" onfocus="this.select()">
+                        <input type="submit" value="Proposer" class="secondary-btn">
+                    </div>
+                </form>
+            </div>
+            {% endif %}
+        </div>
 
-{% with messages = get_flashed_messages() %}
-    {% if messages %}
-        {% for message in messages %}
-            <p>{{ message }}</p>
-        {% endfor %}
-    {% endif %}
-{% endwith %}
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="system-message">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+            
+        <div class="game-controls">
+            <form action="/guess" method="post" class="skip-form">
+                <input type="hidden" name="game_code" value="{{ game_code }}">
+                <input type="hidden" name="action" value="skip">
+                <span class="skip-tally">{{ skip_votes_count }}/{{ listplayers|length }} ont voté pour passer</span>
+                <button type="submit" class="secondary-btn" {% if has_voted_skip %}disabled{% endif %}>
+                    {% if has_voted_skip %}Vote enregistré{% else %}Voter pour passer{% endif %}
+                </button>
+            </form>
 
-<p>Joueur actuel : {{ playerplay }} || Liste des joueurs : {{ listplayers }}</p>
+            <form action="/leavegame" method="post">
+                <input type="hidden" name="game_code" value="{{ game_code }}">
+                {% if admin %}
+                    <input type="hidden" name="action" value="delete">
+                    <button type="submit">Supprimer la salle</button>
+                {% else %}
+                    <button type="submit">Quitter la salle</button>
+                {% endif %}
+            </form>
+        </div>
+    </div>
 
-<!-- Script optimisé pour détecter les changements d'état via hash -->
-<script>
-    const gameCode = "{{ game_code }}";
-    let currentHash = null;
-
-    // Fonction pour récupérer le hash actuel de la partie
-    async function fetchGameHash() {
-        try {
-            const response = await fetch(`/api/update/hash`, {
-                method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: `game_code=${encodeURIComponent(gameCode)}`
-            });
-            const data = await response.json();
-            return data.hash;
-        } catch (error) {
-            console.error("Erreur lors de la récupération du hash :", error);
-            return null;
-        }
-    }
-
-    // Fonction pour vérifier les changements
-    async function checkForChanges() {
-        const newHash = await fetchGameHash();
-        if (newHash && newHash !== currentHash) {
-            currentHash = newHash;
-            window.location.reload(); // Recharge si le hash a changé
-        }
-    }
-
-    // Initialisation
-    (async () => {
-        currentHash = await fetchGameHash();
-        // Vérifie toutes les 1.5 secondes si ce n'est pas le tour du joueur (comme avant)
-        // ou toutes les 5 secondes si c'est son tour (moins fréquent)
-        const interval = {% if ifplay != 1 %}1500{% else %}5000{% endif %};
-        setInterval(checkForChanges, interval);
-    })();
-
-    // Détection du changement de hash dans l'URL (si utilisé)
-    window.addEventListener("hashchange", () => {
-        window.location.reload();
-    });
-</script>
+    <script src="{{ url_for('static', filename='js/site.js') }}" defer></script>
+  </body>
+</html>

@@ -1,57 +1,58 @@
-<style>
-    body {
-        text-align: center;
-        font-family: Arial, sans-serif;
-        margin: 20px;
-    }
-    button {
-        margin: 4px;
-        padding: 8px 12px;
-        font-size: 18px;
-        background: #4CAF50;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-    }
-    button:hover {
-        background: #45a049;
-    }
-    h1 {
-        color: #4CAF50;
-    }
-    .players {
-        margin: 20px auto;
-        max-width: 300px;
-        text-align: left;
-    }
-    .player-item {
-        padding: 5px;
-        border-bottom: 1px solid #eee;
-    }
-</style>
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8">
+    <title>Roue de la Fortune</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/content.css') }}">
+  </head>
+  <body data-page="finished" data-game-code="{{ game_code }}">
+    <div id="page-state" data-username="{{ username }}" data-admin="{{ 'true' if admin else 'false' }}"></div>
+    <div class="waiting-shell finished-shell">
+        <div class="header-card">
+            <h1>Partie {{ game_code }} terminée !</h1>
+            <p>Le mot à deviner était : <strong>{{ word }}</strong></p>
+        </div>
 
-{% with messages = get_flashed_messages() %}
-    {% if messages %}
-        {% for message in messages %}
-            <p>{{ message }}</p>
-        {% endfor %}
-    {% endif %}
-{% endwith %}
+        <div class="players-board">
+            {% for player in listplayers %}
+                <div class="player-token {% if player.is_winner %}winner{% endif %}">
+                    <span class="player-number">{{ loop.index }}</span>
+                    <div class="player-info">
+                        <div class="player-name">{{ player.name }}</div>
+                        <div class="player-meta">{{ player.score }} points{% if player.is_winner %} · Gagnant{% endif %}</div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
 
-<h1>Partie {{ game_code }} terminée !</h1>
+        <div class="admin-actions">
+            {% if admin %}
+                <form action="/restartgame" method="post">
+                    <input type="hidden" name="game_code" value="{{ game_code }}">
+                    <button type="submit">Relancer la partie</button>
+                </form>
+            {% endif %}
+            <form action="/leavegame" method="post">
+                <input type="hidden" name="game_code" value="{{ game_code }}">
+                {% if admin %}
+                    <input type="hidden" name="action" value="delete">
+                {% endif %}
+                <button type="submit" class="secondary-btn">Retour à l'accueil</button>
+            </form>
+        </div>
 
-<p>Le mot à deviner était : <strong>{{ word }}</strong></p>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="system-message">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
 
-<h2>Joueurs de la partie :</h2>
-<div class="players">
-    {% for player in listplayers %}
-        <div class="player-item">{{ player.name }} : {{ player.score }} points</div>
-    {% endfor %}
-</div>
-
-<p>Félicitations au gagnant !</p>
-
-<form action="/" method="get">
-    <input type="submit" value="Retour à l'accueil">
-</form>
+    <script src="{{ url_for('static', filename='js/site.js') }}" defer></script>
+  </body>
+</html>

@@ -6,7 +6,34 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  contents: read
+
 jobs:
+  unit_tests:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt pytest
+      - name: Lancer les tests unitaires
+        env:
+          REDIS_HOST: localhost
+        run: python -m pytest tests/ -v
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -32,7 +59,7 @@ jobs:
       - name: Run Redis
         run: docker run -d -p 6379:6379 redis:7-alpine
       - name: Run the Docker image
-        run: docker run -d -p 8000:8000 -e REDIS_HOST=host.docker.internal --add-host=host.docker.internal:host-gateway my-image-name:ci
+        run: docker run -d -p 8000:8000 -e REDIS_HOST=host.docker.internal -e SECRET_KEY=ci-smoke-test-secret-key --add-host=host.docker.internal:host-gateway my-image-name:ci
       - name: Attendre le démarrage de l'app
         run: |
           for i in $(seq 1 30); do
